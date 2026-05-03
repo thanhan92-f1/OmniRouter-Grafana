@@ -23,7 +23,7 @@ Options:
   --update            Update stack files, preserve .env unless reconfigured.
   --reconfigure       Ask again for .env values.
   --no-start          Do not start Docker Compose after writing files.
-  --skip-deps         Skip apt update and Docker dependency installation.
+  --skip-deps         Skip Docker dependency checks/installation.
   -h, --help          Show this help.
 
 The installer asks the client for environment values and writes .env in the
@@ -126,37 +126,32 @@ prompt_value() {
   local default="${3:-}"
   local required="${4:-0}"
   local secret="${5:-0}"
-  local value
+  local input_value
 
   while true; do
-    if [[ "$secret" == "1" ]]; then
-      if [[ -n "$default" ]]; then
-        read -r -s -p "$label [đang có giá trị, Enter để giữ]: " value
-      else
-        read -r -s -p "$label: " value
-      fi
-      printf '\n'
+    if [[ "$secret" == "1" && -n "$default" ]]; then
+      read -r -p "$label [đang có giá trị, Enter để giữ]: " input_value
+    elif [[ "$secret" == "1" ]]; then
+      read -r -p "$label: " input_value
+    elif [[ -n "$default" ]]; then
+      read -r -p "$label [$default]: " input_value
     else
-      if [[ -n "$default" ]]; then
-        read -r -p "$label [$default]: " value
-      else
-        read -r -p "$label: " value
-      fi
+      read -r -p "$label: " input_value
     fi
 
-    value="${value:-$default}"
+    input_value="${input_value:-$default}"
 
-    if [[ "$required" == "1" && -z "$value" ]]; then
+    if [[ "$required" == "1" && -z "$input_value" ]]; then
       warn "$label không được để trống."
       continue
     fi
 
-    if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+    if [[ "$input_value" == *$'\n'* || "$input_value" == *$'\r'* ]]; then
       warn "$label không được chứa xuống dòng."
       continue
     fi
 
-    printf -v "$var_name" '%s' "$value"
+    printf -v "$var_name" '%s' "$input_value"
     break
   done
 }
@@ -165,12 +160,12 @@ prompt_port() {
   local var_name="$1"
   local label="$2"
   local default="$3"
-  local value
+  local port_value
 
   while true; do
-    prompt_value value "$label" "$default" 1 0
-    if [[ "$value" =~ ^[0-9]+$ ]] && (( value >= 1 && value <= 65535 )); then
-      printf -v "$var_name" '%s' "$value"
+    prompt_value port_value "$label" "$default" 1 0
+    if [[ "$port_value" =~ ^[0-9]+$ ]] && (( port_value >= 1 && port_value <= 65535 )); then
+      printf -v "$var_name" '%s' "$port_value"
       return
     fi
     warn "$label phải là port từ 1 đến 65535."
@@ -306,30 +301,89 @@ install_docker_from_apt_repo() {
   run_root apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 }
 
-ensure_dependencies() {
-  if [[ "$SKIP_DEPS" == "1" ]]; then
-    warn "Bỏ qua bước apt update/cài dependency theo yêu cầu."
+install_compose_plugin_only_from_apt_repo() {
+  local os_id codename arch gpg_url repo_line
+
+  # shellcheck disable=SC1091
+  source /etc/os-release
+  os_id="${ID:-}"
+  codename="${VERSION_CODENAME:-}"
+
+  if [[ -z "$codename" ]] && command -v lsb_release >/dev/null 2>&1; then
+    codename="$(lsb_release -cs)"
+  fi
+
+  if [[ "$os_id" != "ubuntu" && "$os_id" != "debian" ]]; then
+    warn "OS $os_id chưa được Docker official repo hỗ trợ trực tiếp bởi script. Thử cài docker-compose-plugin từ apt."
+    run_root apt-get install -y docker-compose-plugin
     return
   fi
 
-  command -v apt-get >/dev/null 2>&1 || {
-    warn "Không tìm thấy apt-get. Script sẽ không tự cài Docker/dependency."
-    return
-  }
+  [[ -n "$codename" ]] || die "Không xác định được VERSION_CODENAME để cài Docker Compose plugin."
 
-  log "Chạy apt-get update trước khi tạo/cập nhật stack."
-  export DEBIAN_FRONTEND=noninteractive
+  arch="$(dpkg --print-architecture)"
+  gpg_url="https://download.docker.com/linux/${os_id}/gpg"
+  repo_line="deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${os_id} ${codename} stable"
+
+  run_root install -m 0755 -d /etc/apt/keyrings
+
+  if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
+    log "Thêm Docker GPG key để cài riêng Docker Compose plugin."
+    curl -fsSL "$gpg_url" | run_root gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    run_root chmod a+r /etc/apt/keyrings/docker.gpg
+  fi
+
+  printf '%s\n' "$repo_line" | run_root tee /etc/apt/sources.list.d/docker.list >/dev/null
   run_root apt-get update
-  run_root apt-get install -y ca-certificates curl gnupg lsb-release
+  run_root apt-get install -y docker-compose-plugin
+}
 
-  if ! command -v docker >/dev/null 2>&1; then
-    log "Chưa có Docker. Tiến hành cài Docker Engine và Compose plugin."
-    install_docker_from_apt_repo
-  elif ! docker compose version >/dev/null 2>&1; then
-    log "Docker đã có nhưng thiếu Docker Compose plugin. Tiến hành cài plugin."
-    if ! run_root apt-get install -y docker-compose-plugin; then
-      warn "Không cài được docker-compose-plugin từ repo hiện tại. Thử thêm Docker official repo."
+ensure_dependencies() {
+  local docker_has=0 compose_has=0 docker_version compose_version
+
+  if [[ "$SKIP_DEPS" == "1" ]]; then
+    warn "Bỏ qua bước kiểm tra/cài dependency theo yêu cầu."
+    return
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    docker_has=1
+    docker_version="$(docker --version 2>/dev/null || true)"
+    log "Docker đã có: ${docker_version:-unknown version}"
+  else
+    warn "Chưa có Docker trên host."
+  fi
+
+  if [[ "$docker_has" == "1" ]] && docker compose version >/dev/null 2>&1; then
+    compose_has=1
+    compose_version="$(docker compose version --short 2>/dev/null || docker compose version 2>/dev/null || true)"
+    log "Docker Compose plugin đã có: ${compose_version:-unknown version}"
+  elif [[ "$docker_has" == "1" ]]; then
+    warn "Chưa có Docker Compose plugin."
+  fi
+
+  if [[ "$docker_has" == "1" && "$compose_has" == "1" ]]; then
+    log "Docker/Compose đã có sẵn. Bỏ qua apt-get update và không cài Docker."
+  else
+    command -v apt-get >/dev/null 2>&1 || {
+      warn "Không tìm thấy apt-get. Script sẽ không tự cài Docker/dependency."
+      return
+    }
+
+    log "Chỉ vì thiếu Docker/Compose nên mới chạy apt-get update và cài dependency cần thiết."
+    export DEBIAN_FRONTEND=noninteractive
+    run_root apt-get update
+    run_root apt-get install -y ca-certificates curl gnupg lsb-release
+
+    if [[ "$docker_has" == "0" ]]; then
+      log "Tiến hành cài Docker Engine và Docker Compose plugin."
       install_docker_from_apt_repo
+    elif [[ "$compose_has" == "0" ]]; then
+      log "Docker đã có nhưng thiếu Compose plugin. Tiến hành cài Docker Compose plugin."
+      if ! run_root apt-get install -y docker-compose-plugin; then
+        warn "Không cài được docker-compose-plugin từ repo hiện tại. Thử thêm Docker official repo nhưng chỉ cài Compose plugin, không cài lại Docker Engine."
+        install_compose_plugin_only_from_apt_repo
+      fi
     fi
   fi
 
@@ -446,6 +500,44 @@ collect_env_values() {
     warn "OmniRouter base URL không bắt đầu bằng http:// hoặc https://: $OMNIROUTE_BASE_URL_VALUE"
     ask_yes_no "Vẫn ghi giá trị này?" "N" || collect_env_values
   fi
+}
+
+print_config_summary() {
+  log "Hiển thị đầy đủ cấu hình env sẽ ghi vào $INSTALL_DIR/.env:"
+  printf '%s\n' '------------------------------------------------------------'
+  write_env_line COMPOSE_PROJECT_NAME "$COMPOSE_PROJECT_NAME_VALUE"
+  write_env_line OMNIROUTE_BASE_URL "$OMNIROUTE_BASE_URL_VALUE"
+  write_env_line OMNIROUTE_API_KEY "$OMNIROUTE_API_KEY_VALUE"
+  write_env_line OMNIROUTE_ADMIN_PASSWORD "$OMNIROUTE_ADMIN_PASSWORD_VALUE"
+  write_env_line OMNIROUTE_INSTANCE "$OMNIROUTE_INSTANCE_VALUE"
+  write_env_line OMNIROUTE_ENV "$OMNIROUTE_ENV_VALUE"
+  write_env_line GRAFANA_ADMIN_USER "$GRAFANA_ADMIN_USER_VALUE"
+  write_env_line GRAFANA_ADMIN_PASSWORD "$GRAFANA_ADMIN_PASSWORD_VALUE"
+  write_env_line GRAFANA_ROOT_URL "$GRAFANA_ROOT_URL_VALUE"
+  write_env_line GRAFANA_PORT "$GRAFANA_PORT_VALUE"
+  write_env_line PROMETHEUS_PORT "$PROMETHEUS_PORT_VALUE"
+  write_env_line LOKI_PORT "$LOKI_PORT_VALUE"
+  write_env_line BLACKBOX_PORT "$BLACKBOX_PORT_VALUE"
+  write_env_line OMNIROUTER_EXPORTER_PORT "$OMNIROUTER_EXPORTER_PORT_VALUE"
+  write_env_line OMNIROUTE_LOGS_PATH "$OMNIROUTE_LOGS_PATH_VALUE"
+  printf '%s\n' '------------------------------------------------------------'
+}
+
+print_env_file() {
+  local env_file="$1"
+
+  log "Hiển thị đầy đủ cấu hình env hiện có: $env_file"
+  printf '%s\n' '------------------------------------------------------------'
+
+  if [[ -r "$env_file" ]]; then
+    cat "$env_file"
+  elif is_root; then
+    cat "$env_file"
+  else
+    sudo cat "$env_file"
+  fi
+
+  printf '%s\n' '------------------------------------------------------------'
 }
 
 write_env_file() {
@@ -566,9 +658,11 @@ main() {
 
   if [[ "$should_write_env" == "1" ]]; then
     collect_env_values
+    print_config_summary
     write_env_file
   else
     log "Giữ nguyên cấu hình .env hiện có: $INSTALL_DIR/.env"
+    print_env_file "$INSTALL_DIR/.env"
   fi
 
   [[ -f "$INSTALL_DIR/.env" ]] || die "Chưa có $INSTALL_DIR/.env. Hãy chạy lại và nhập cấu hình env."

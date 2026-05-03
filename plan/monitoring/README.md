@@ -39,7 +39,7 @@ plan/monitoring/
 
 ### Cài tự động trên VPS Linux
 
-Script cài đặt mặc định tạo/cập nhật stack trong thư mục `/home/omnirouter-monitoring`. Script sẽ chạy `apt-get update`, cài Docker/Compose nếu thiếu, copy bộ file monitoring, hỏi client nhập cấu hình `.env`, rồi chạy stack.
+Script cài đặt mặc định tạo/cập nhật stack trong thư mục `/home/omnirouter-monitoring`. Script kiểm tra Docker/Compose trước; nếu đã có thì bỏ qua cài đặt Docker và không chạy `apt-get update`. Chỉ khi thiếu Docker hoặc Compose plugin, script mới chạy `apt-get update` và cài phần còn thiếu. Sau đó script copy bộ file monitoring, hỏi client nhập cấu hình `.env`, hiển thị đầy đủ cấu hình đã nhập, rồi chạy stack.
 
 Chạy từ thư mục chứa bộ file `plan/monitoring`:
 
@@ -86,7 +86,7 @@ Tùy chọn hữu ích:
 | `--update` | Cập nhật bộ file và giữ `.env` nếu không reconfigure |
 | `--reconfigure` | Hỏi lại cấu hình `.env` |
 | `--no-start` | Chỉ tạo file, không chạy Docker Compose |
-| `--skip-deps` | Không chạy `apt-get update` và không cài Docker |
+| `--skip-deps` | Không kiểm tra/cài Docker dependency |
 
 Script sẽ backup `.env` cũ thành `.env.bak.YYYYMMDDHHMMSS` trước khi ghi cấu hình mới.
 
