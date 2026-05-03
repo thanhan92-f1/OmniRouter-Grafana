@@ -493,6 +493,8 @@ collect_env_values() {
   prompt_port LOKI_PORT_VALUE "Loki host port" "$(get_env_default LOKI_PORT 3100 "$source_env")"
   prompt_port BLACKBOX_PORT_VALUE "Blackbox Exporter host port" "$(get_env_default BLACKBOX_PORT 9115 "$source_env")"
   prompt_port OMNIROUTER_EXPORTER_PORT_VALUE "OmniRouter Exporter host port" "$(get_env_default OMNIROUTER_EXPORTER_PORT 9208 "$source_env")"
+  prompt_value SCRAPE_TIMEOUT_MS_VALUE "Exporter API timeout ms" "$(get_env_default SCRAPE_TIMEOUT_MS 20000 "$source_env")" 1 0
+  prompt_value PROMETHEUS_RETENTION_TIME_VALUE "Prometheus retention time" "$(get_env_default PROMETHEUS_RETENTION_TIME 30d "$source_env")" 1 0
   prompt_value OMNIROUTE_LOGS_PATH_VALUE "OmniRouter logs path trên host" "$(get_env_default OMNIROUTE_LOGS_PATH /var/lib/omniroute/logs "$source_env")" 1 0
   prompt_value GRAFANA_ROOT_URL_VALUE "Grafana root URL public, bỏ trống nếu chưa có reverse proxy" "$(get_env_default GRAFANA_ROOT_URL '' "$source_env")" 0 0
 
@@ -519,6 +521,8 @@ print_config_summary() {
   write_env_line LOKI_PORT "$LOKI_PORT_VALUE"
   write_env_line BLACKBOX_PORT "$BLACKBOX_PORT_VALUE"
   write_env_line OMNIROUTER_EXPORTER_PORT "$OMNIROUTER_EXPORTER_PORT_VALUE"
+  write_env_line SCRAPE_TIMEOUT_MS "$SCRAPE_TIMEOUT_MS_VALUE"
+  write_env_line PROMETHEUS_RETENTION_TIME "$PROMETHEUS_RETENTION_TIME_VALUE"
   write_env_line OMNIROUTE_LOGS_PATH "$OMNIROUTE_LOGS_PATH_VALUE"
   printf '%s\n' '------------------------------------------------------------'
 }
@@ -566,6 +570,8 @@ write_env_file() {
     write_env_line LOKI_PORT "$LOKI_PORT_VALUE"
     write_env_line BLACKBOX_PORT "$BLACKBOX_PORT_VALUE"
     write_env_line OMNIROUTER_EXPORTER_PORT "$OMNIROUTER_EXPORTER_PORT_VALUE"
+    write_env_line SCRAPE_TIMEOUT_MS "$SCRAPE_TIMEOUT_MS_VALUE"
+    write_env_line PROMETHEUS_RETENTION_TIME "$PROMETHEUS_RETENTION_TIME_VALUE"
     printf '\n'
     write_env_line OMNIROUTE_LOGS_PATH "$OMNIROUTE_LOGS_PATH_VALUE"
   } >"$env_tmp"

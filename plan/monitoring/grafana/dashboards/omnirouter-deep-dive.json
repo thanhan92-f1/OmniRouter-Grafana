@@ -31,32 +31,20 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "text": "DOWN"
-                },
-                "1": {
-                  "text": "UP"
-                }
-              },
-              "type": "value"
-            }
-          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "green",
                 "value": null
               },
               {
-                "color": "green",
+                "color": "red",
                 "value": 1
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -69,10 +57,9 @@
       "id": 1,
       "options": {
         "colorMode": "background",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "center",
         "orientation": "auto",
-        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -80,19 +67,18 @@
           "fields": "",
           "values": false
         },
-        "showPercentChange": false,
         "textMode": "auto",
         "wideLayout": true
       },
       "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "omnirouter_up",
-          "legendFormat": "OmniRouter",
+          "expr": "omnirouter_scrape_endpoint_failures",
+          "legendFormat": "failed endpoints",
           "refId": "A"
         }
       ],
-      "title": "OmniRouter Health",
+      "title": "Scrape Endpoint Failures",
       "type": "stat"
     },
     {
@@ -102,7 +88,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "s"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -131,12 +117,12 @@
       "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "omnirouter_uptime_seconds",
-          "legendFormat": "uptime",
+          "expr": "sum(omnirouter_model_count)",
+          "legendFormat": "models",
           "refId": "A"
         }
       ],
-      "title": "Uptime",
+      "title": "Model Inventory Total",
       "type": "stat"
     },
     {
@@ -175,12 +161,12 @@
       "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "omnirouter_requests_total",
-          "legendFormat": "requests",
+          "expr": "omnirouter_provider_connections_count",
+          "legendFormat": "providers",
           "refId": "A"
         }
       ],
-      "title": "Requests Total",
+      "title": "Provider Connections",
       "type": "stat"
     },
     {
@@ -190,7 +176,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -219,12 +205,12 @@
       "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "omnirouter_cost_usd_total",
-          "legendFormat": "cost",
+          "expr": "omnirouter_token_health_unhealthy",
+          "legendFormat": "unhealthy tokens",
           "refId": "A"
         }
       ],
-      "title": "Cost Total",
+      "title": "Unhealthy Tokens",
       "type": "stat"
     },
     {
@@ -234,7 +220,10 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps"
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -260,12 +249,17 @@
       },
       "targets": [
         {
-          "expr": "rate(omnirouter_requests_total[5m])",
-          "legendFormat": "requests/s",
+          "expr": "omnirouter_model_count",
+          "legendFormat": "{{source}}",
           "refId": "A"
+        },
+        {
+          "expr": "omnirouter_pricing_entries_count",
+          "legendFormat": "pricing {{source}}",
+          "refId": "B"
         }
       ],
-      "title": "Request Rate",
+      "title": "Models & Pricing Inventory",
       "type": "timeseries"
     },
     {
@@ -275,6 +269,9 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "unit": "short"
         },
         "overrides": []
@@ -301,22 +298,366 @@
       },
       "targets": [
         {
-          "expr": "omnirouter_tokens_total",
-          "legendFormat": "tokens",
+          "expr": "omnirouter_provider_connections_count",
+          "legendFormat": "provider connections",
           "refId": "A"
         },
         {
-          "expr": "omnirouter_tokens_input_total",
-          "legendFormat": "input tokens",
+          "expr": "omnirouter_provider_enabled_count",
+          "legendFormat": "enabled providers",
           "refId": "B"
         },
         {
-          "expr": "omnirouter_tokens_output_total",
-          "legendFormat": "output tokens",
+          "expr": "omnirouter_provider_nodes_count",
+          "legendFormat": "provider nodes",
+          "refId": "C"
+        },
+        {
+          "expr": "omnirouter_provider_models_count",
+          "legendFormat": "provider models",
+          "refId": "D"
+        }
+      ],
+      "title": "Provider Inventory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "omnirouter_api_keys_count",
+          "legendFormat": "api keys",
+          "refId": "A"
+        },
+        {
+          "expr": "omnirouter_api_keys_active_count",
+          "legendFormat": "active api keys",
+          "refId": "B"
+        },
+        {
+          "expr": "omnirouter_combo_count",
+          "legendFormat": "combos",
+          "refId": "C"
+        },
+        {
+          "expr": "omnirouter_combo_enabled_count",
+          "legendFormat": "enabled combos",
+          "refId": "D"
+        }
+      ],
+      "title": "Keys & Combos",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "omnirouter_settings_payload_rules_enabled",
+          "legendFormat": "payload rules enabled",
+          "refId": "A"
+        },
+        {
+          "expr": "omnirouter_settings_proxy_enabled",
+          "legendFormat": "proxy enabled",
+          "refId": "B"
+        },
+        {
+          "expr": "omnirouter_settings_ip_filter_enabled",
+          "legendFormat": "ip filter enabled",
+          "refId": "C"
+        },
+        {
+          "expr": "omnirouter_settings_rate_limit_enabled",
+          "legendFormat": "rate limit enabled",
+          "refId": "D"
+        }
+      ],
+      "title": "Settings Flags",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "omnirouter_cli_tool_enabled",
+          "legendFormat": "{{tool}} enabled",
+          "refId": "A"
+        },
+        {
+          "expr": "omnirouter_cli_tool_profiles_count",
+          "legendFormat": "{{tool}} profiles",
+          "refId": "B"
+        },
+        {
+          "expr": "omnirouter_cli_tool_backups_count",
+          "legendFormat": "cli backups",
           "refId": "C"
         }
       ],
-      "title": "Token Usage",
+      "title": "CLI Tools & Translator",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "omnirouter_cloud_model_aliases_count",
+          "legendFormat": "cloud model aliases",
+          "refId": "A"
+        },
+        {
+          "expr": "omnirouter_fallback_chains_count",
+          "legendFormat": "fallback chains",
+          "refId": "B"
+        },
+        {
+          "expr": "omnirouter_fallback_chains_enabled_count",
+          "legendFormat": "enabled fallback chains",
+          "refId": "C"
+        },
+        {
+          "expr": "omnirouter_translator_history_entries",
+          "legendFormat": "translator history",
+          "refId": "D"
+        }
+      ],
+      "title": "Cloud, Fallback & Translator",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "omnirouter_telemetry_requests_total",
+          "legendFormat": "telemetry requests",
+          "refId": "A"
+        },
+        {
+          "expr": "omnirouter_telemetry_errors_total",
+          "legendFormat": "telemetry errors",
+          "refId": "B"
+        },
+        {
+          "expr": "omnirouter_telemetry_tokens_total",
+          "legendFormat": "telemetry tokens",
+          "refId": "C"
+        }
+      ],
+      "title": "Telemetry Summary",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "omnirouter_token_health_total",
+          "legendFormat": "token health total",
+          "refId": "A"
+        },
+        {
+          "expr": "omnirouter_token_health_healthy",
+          "legendFormat": "healthy",
+          "refId": "B"
+        },
+        {
+          "expr": "omnirouter_token_health_unhealthy",
+          "legendFormat": "unhealthy",
+          "refId": "C"
+        }
+      ],
+      "title": "Token Health",
       "type": "timeseries"
     },
     {
@@ -354,191 +695,16 @@
                 "value": 1
               }
             ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 12
-      },
-      "id": 9,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "expr": "min(omnirouter_endpoint_up{endpoint=~\"/api/(init|db-backups|tags|sessions|cache|cache/stats|evals|policies|compliance/audit-log)\"})",
-          "legendFormat": "system APIs",
-          "refId": "A"
-        }
-      ],
-      "title": "System APIs",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
+          },
           "unit": "short"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 12
-      },
-      "id": 10,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "expr": "omnirouter_system_active_sessions",
-          "legendFormat": "sessions",
-          "refId": "A"
-        }
-      ],
-      "title": "Active Sessions",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 12
-      },
-      "id": 11,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "expr": "omnirouter_backup_count",
-          "legendFormat": "backups",
-          "refId": "A"
-        }
-      ],
-      "title": "DB Backups",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 12
-      },
-      "id": 12,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "expr": "omnirouter_system_model_tags_count",
-          "legendFormat": "model tags",
-          "refId": "A"
-        }
-      ],
-      "title": "Model Tags",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 36
       },
       "id": 13,
       "options": {
@@ -556,17 +722,12 @@
       },
       "targets": [
         {
-          "expr": "omnirouter_usage_requests_total",
-          "legendFormat": "{{period}} requests",
+          "expr": "omnirouter_endpoint_up",
+          "legendFormat": "{{endpoint}}",
           "refId": "A"
-        },
-        {
-          "expr": "omnirouter_usage_errors_total",
-          "legendFormat": "{{period}} errors",
-          "refId": "B"
         }
       ],
-      "title": "Usage Requests by Period",
+      "title": "Endpoint Availability",
       "type": "timeseries"
     },
     {
@@ -576,15 +737,18 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "currencyUSD"
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 36
       },
       "id": 14,
       "options": {
@@ -602,177 +766,13 @@
       },
       "targets": [
         {
-          "expr": "omnirouter_usage_cost_usd_total",
-          "legendFormat": "{{period}} cost",
+          "expr": "topk(15, omnirouter_endpoint_latency_seconds)",
+          "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
       ],
-      "title": "Usage Cost by Period",
+      "title": "Slowest Endpoint Latency",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 24
-      },
-      "id": 15,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "omnirouter_usage_log_entries",
-          "legendFormat": "{{source}} entries",
-          "refId": "A"
-        },
-        {
-          "expr": "omnirouter_usage_log_errors",
-          "legendFormat": "{{source}} errors",
-          "refId": "B"
-        }
-      ],
-      "title": "Usage Log APIs",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 24
-      },
-      "id": 16,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "omnirouter_system_cache_hit_ratio * 100",
-          "legendFormat": "{{cache}} hit ratio",
-          "refId": "A"
-        }
-      ],
-      "title": "System Cache Hit Ratio",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "Prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 32
-      },
-      "id": 7,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-          "legendFormat": "CPU %",
-          "refId": "A"
-        },
-        {
-          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
-          "legendFormat": "RAM %",
-          "refId": "B"
-        }
-      ],
-      "title": "VPS CPU/RAM",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "Loki"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 32
-      },
-      "id": 8,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": true
-      },
-      "targets": [
-        {
-          "expr": "{job=\"omnirouter\"} |~ \"(?i)(error|warn|failed|timeout|rate limit)\"",
-          "refId": "A"
-        }
-      ],
-      "title": "Recent OmniRouter Warnings/Errors",
-      "type": "logs"
     }
   ],
   "preload": false,
@@ -780,6 +780,7 @@
   "schemaVersion": 41,
   "tags": [
     "omnirouter",
+    "deep-dive",
     "monitoring"
   ],
   "templating": {
@@ -791,7 +792,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "OmniRouter Overview",
-  "uid": "omnirouter-overview",
+  "title": "OmniRouter Deep Dive",
+  "uid": "omnirouter-deep-dive",
   "version": 1
 }

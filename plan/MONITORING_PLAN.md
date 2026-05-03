@@ -31,6 +31,15 @@ OmniRouter có các endpoint hữu ích:
 
 - `/api/monitoring/health`
 - `/api/storage/health`
+- `/api/init`
+- `/api/db-backups`
+- `/api/tags`
+- `/api/sessions`
+- `/api/cache`
+- `/api/cache/stats`
+- `/api/evals`
+- `/api/policies`
+- `/api/compliance/audit-log`
 - `/api/usage/analytics`
 - `/api/usage/call-logs`
 - `/api/usage/logs`
@@ -40,6 +49,15 @@ OmniRouter có các endpoint hữu ích:
 - `/api/combos/metrics`
 - `/api/rate-limits`
 - `/api/resilience`
+- `/api/models`, `/api/models/catalog`, `/api/v1/models`, `/api/v1beta/models`
+- `/api/providers`, `/api/providers/client`, `/api/provider-nodes`, `/api/provider-models`
+- `/api/keys`, `/api/combos`
+- `/api/settings`, `/api/settings/payload-rules`, `/api/settings/proxy`, `/api/settings/ip-filter`, `/api/settings/system-prompt`, `/api/settings/thinking-budget`, `/api/rate-limit`
+- `/api/pricing`, `/api/pricing/defaults`, `/api/pricing/models`
+- `/api/translator/history`, `/api/translator/load`
+- `/api/cli-tools/*-settings`, `/api/cli-tools/backups`, `/api/cli-tools/codex-profiles`
+- `/api/cloud/models/alias`, `/api/fallback/chains`
+- `/api/telemetry/summary`, `/api/token-health`
 
 Chưa thấy endpoint `/metrics` Prometheus chuẩn, nên cần `omnirouter-exporter`.
 
@@ -101,29 +119,57 @@ Metrics mục tiêu:
 
 - `omnirouter_up`
 - `omnirouter_storage_healthy`
+- `omnirouter_backup_count`
+- `omnirouter_system_init_ready`
+- `omnirouter_system_model_tags_count`
+- `omnirouter_system_active_sessions`
+- `omnirouter_system_eval_suites_count`
+- `omnirouter_system_routing_policies_count`
+- `omnirouter_system_audit_log_entries_count`
+- `omnirouter_system_cache_entries`
+- `omnirouter_system_cache_hit_ratio`
 - `omnirouter_requests_total`
 - `omnirouter_errors_total`
 - `omnirouter_tokens_total`
 - `omnirouter_cost_usd_total`
+- `omnirouter_usage_requests_total{period="day|week|month"}`
+- `omnirouter_usage_log_entries{source="usage|proxy|request|call"}`
+- `omnirouter_usage_provider_requests_total`
+- `omnirouter_usage_provider_cost_usd_total`
 - `omnirouter_budget_usage_ratio`
 - `omnirouter_rate_limit_remaining`
 - `omnirouter_circuit_breaker_open`
 - `omnirouter_provider_up`
 - `omnirouter_provider_latency_seconds`
+- `omnirouter_model_count`
+- `omnirouter_provider_connections_count`
+- `omnirouter_provider_nodes_count`
+- `omnirouter_provider_models_count`
+- `omnirouter_api_keys_count`
+- `omnirouter_combo_count`
+- `omnirouter_settings_*`
+- `omnirouter_pricing_entries_count`
+- `omnirouter_cli_tool_*`
+- `omnirouter_cloud_model_aliases_count`
+- `omnirouter_fallback_chains_count`
+- `omnirouter_telemetry_*`
+- `omnirouter_token_health_*`
 
 ## Phase 5 — Grafana dashboards
 
 Dashboard ban đầu đã tạo:
 
 - `OmniRouter Overview`
+- `OmniRouter Deep Dive`
 
-Cần bổ sung sau khi có dữ liệu thật:
+Cần tinh chỉnh sau khi có dữ liệu thật:
 
 1. OmniRouter Provider Health
 2. Usage & Cost
 3. Logs & Errors
 4. VPS/System
 5. Rate Limit & Budget
+6. Inventory, Settings, Pricing, CLI Tools, Telemetry, Token Health
 
 ## Phase 6 — Alerting
 
@@ -136,6 +182,9 @@ Alert đã tạo trong `prometheus/alerts/omnirouter.yml`:
 - Latency cao
 - Budget usage cao
 - Circuit breaker open
+- Exporter scrape endpoint failures
+- Inventory/Settings/Telemetry API down
+- Token health unhealthy
 - VPS CPU/RAM/Disk cao
 
 Bước sau nên thêm Alertmanager để gửi Telegram/Email/Slack.

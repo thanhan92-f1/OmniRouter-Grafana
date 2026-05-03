@@ -64,6 +64,78 @@ groups:
           summary: OmniRouter circuit breaker is open
           description: One or more provider circuit breakers are open.
 
+      - alert: OmniRouterSystemApiDown
+        expr: omnirouter_endpoint_up{endpoint=~"/api/(init|db-backups|tags|sessions|cache|cache/stats|evals|policies|compliance/audit-log)$"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter System API endpoint is down
+          description: "System API endpoint {{ $labels.endpoint }} is unavailable to the exporter."
+
+      - alert: OmniRouterUsageApiDown
+        expr: omnirouter_endpoint_up{endpoint=~"/api/usage/(analytics(:week|:month)?|history|logs|proxy-logs|request-logs|call-logs|budget)$"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter Usage API endpoint is down
+          description: "Usage API endpoint {{ $labels.endpoint }} is unavailable to the exporter."
+
+      - alert: OmniRouterUsageLogErrors
+        expr: omnirouter_usage_log_errors > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter Usage log errors detected
+          description: "Usage log source {{ $labels.source }} returned {{ $value }} failed/error entries."
+
+      - alert: OmniRouterExporterEndpointFailures
+        expr: omnirouter_scrape_endpoint_failures > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter exporter has failed API endpoints
+          description: "Exporter observed {{ $value }} failed OmniRouter API endpoints in the last scrape."
+
+      - alert: OmniRouterInventoryApiDown
+        expr: omnirouter_endpoint_up{endpoint=~"/api/(models|models/catalog|providers|providers/client|provider-nodes|provider-models|keys|combos)$"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter inventory API endpoint is down
+          description: "Inventory API endpoint {{ $labels.endpoint }} is unavailable to the exporter."
+
+      - alert: OmniRouterSettingsApiDown
+        expr: omnirouter_endpoint_up{endpoint=~"/api/(settings|settings/payload-rules|settings/combo-defaults|settings/proxy|settings/ip-filter|settings/system-prompt|settings/thinking-budget|rate-limit)$"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter settings API endpoint is down
+          description: "Settings API endpoint {{ $labels.endpoint }} is unavailable to the exporter."
+
+      - alert: OmniRouterTelemetryApiDown
+        expr: omnirouter_endpoint_up{endpoint=~"/api/(telemetry/summary|token-health)$"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter telemetry API endpoint is down
+          description: "Telemetry API endpoint {{ $labels.endpoint }} is unavailable to the exporter."
+
+      - alert: OmniRouterTokenHealthUnhealthy
+        expr: omnirouter_token_health_unhealthy > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter token health has unhealthy entries
+          description: "Token health endpoint reports {{ $value }} unhealthy records."
+
   - name: vps.rules
     rules:
       - alert: VPSHighCPU
