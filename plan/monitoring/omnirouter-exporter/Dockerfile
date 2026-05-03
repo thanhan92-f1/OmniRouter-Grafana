@@ -18,4 +18,4 @@ ENV EXPORTER_PORT=9208
 
 EXPOSE 9208
 
-CMD ["node", "src/index.js"]
+CMD ["src/index.js"]
