@@ -15,6 +15,8 @@ Public URL health --------> Blackbox Exporter ----> Prometheus --> Grafana
 
 ```text
 plan/monitoring/
+  install.sh
+  update.sh
   docker-compose.yml
   .env.example
   prometheus/
@@ -34,6 +36,61 @@ plan/monitoring/
 ```
 
 ## Chuẩn bị
+
+### Cài tự động trên VPS Linux
+
+Script cài đặt mặc định tạo/cập nhật stack trong thư mục `/home/omnirouter-monitoring`. Script sẽ chạy `apt-get update`, cài Docker/Compose nếu thiếu, copy bộ file monitoring, hỏi client nhập cấu hình `.env`, rồi chạy stack.
+
+Chạy từ thư mục chứa bộ file `plan/monitoring`:
+
+```bash
+bash install.sh
+```
+
+Cài vào thư mục khác trong `/home`:
+
+```bash
+bash install.sh --install-dir /home/omnirouter-monitoring
+```
+
+Cập nhật sau này:
+
+```bash
+bash /home/omnirouter-monitoring/update.sh
+```
+
+Nếu muốn cập nhật file nhưng nhập lại toàn bộ cấu hình env:
+
+```bash
+bash /home/omnirouter-monitoring/update.sh --reconfigure
+```
+
+Các giá trị script sẽ hỏi client nhập:
+
+- `OMNIROUTE_BASE_URL`
+- `OMNIROUTE_ADMIN_PASSWORD`
+- `OMNIROUTE_API_KEY` nếu có dùng cho `/api/v1/*` hoặc `/v1/*`
+- `OMNIROUTE_INSTANCE`
+- `OMNIROUTE_ENV`
+- `GRAFANA_ADMIN_USER`
+- `GRAFANA_ADMIN_PASSWORD`
+- `GRAFANA_ROOT_URL` nếu có reverse proxy public
+- Các port host: Grafana, Prometheus, Loki, Blackbox, OmniRouter Exporter
+- `OMNIROUTE_LOGS_PATH`
+
+Tùy chọn hữu ích:
+
+| Option | Ý nghĩa |
+| --- | --- |
+| `--install-dir /home/omnirouter-monitoring` | Chọn thư mục cài đặt/cập nhật |
+| `--update` | Cập nhật bộ file và giữ `.env` nếu không reconfigure |
+| `--reconfigure` | Hỏi lại cấu hình `.env` |
+| `--no-start` | Chỉ tạo file, không chạy Docker Compose |
+| `--skip-deps` | Không chạy `apt-get update` và không cài Docker |
+
+Script sẽ backup `.env` cũ thành `.env.bak.YYYYMMDDHHMMSS` trước khi ghi cấu hình mới.
+
+### Cài thủ công
 
 1. Copy env mẫu:
 
