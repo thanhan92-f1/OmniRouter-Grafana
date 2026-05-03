@@ -1,0 +1,103 @@
+groups:
+  - name: omnirouter.rules
+    rules:
+      - alert: OmniRouterExporterDown
+        expr: up{job="omnirouter-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: OmniRouter exporter is down
+          description: Prometheus cannot scrape omnirouter-exporter for more than 1 minute.
+
+      - alert: OmniRouterHealthDown
+        expr: omnirouter_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: OmniRouter health check failed
+          description: OmniRouter API health endpoint is not healthy.
+
+      - alert: OmniRouterPublicEndpointDown
+        expr: probe_success{job="blackbox-omnirouter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: OmniRouter public endpoint is down
+          description: "Blackbox probe failed for {{ $labels.target }}."
+
+      - alert: OmniRouterHighLatency
+        expr: probe_http_duration_seconds{job="blackbox-omnirouter", phase="transfer"} > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter endpoint latency is high
+          description: "Transfer latency for {{ $labels.target }} is above 5 seconds."
+
+      - alert: OmniRouterStorageUnhealthy
+        expr: omnirouter_storage_healthy == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: OmniRouter storage is unhealthy
+          description: Storage health endpoint reports unhealthy state.
+
+      - alert: OmniRouterBudgetHigh
+        expr: omnirouter_budget_usage_ratio >= 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter budget usage is high
+          description: "Budget usage ratio is {{ $value }}."
+
+      - alert: OmniRouterCircuitBreakerOpen
+        expr: omnirouter_circuit_breaker_open > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: OmniRouter circuit breaker is open
+          description: One or more provider circuit breakers are open.
+
+  - name: vps.rules
+    rules:
+      - alert: VPSHighCPU
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: VPS CPU usage is high
+          description: "CPU usage on {{ $labels.instance }} is above 85%."
+
+      - alert: VPSHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: VPS memory usage is high
+          description: "Memory usage on {{ $labels.instance }} is above 85%."
+
+      - alert: VPSDiskWarning
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: VPS disk usage is high
+          description: "Disk usage on {{ $labels.instance }} {{ $labels.mountpoint }} is above 80%."
+
+      - alert: VPSDiskCritical
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: VPS disk usage is critical
+          description: "Disk usage on {{ $labels.instance }} {{ $labels.mountpoint }} is above 90%."

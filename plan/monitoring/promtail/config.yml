@@ -1,0 +1,46 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: omnirouter-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: omnirouter
+          service: omnirouter
+          instance: HiTechAI
+          env: production
+          __path__: /var/log/omniroute/**/*.log
+    pipeline_stages:
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2}|^\{|^\[[0-9]{4}-[0-9]{2}-[0-9]{2}'
+          max_wait_time: 3s
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            message: message
+            route: route
+            method: method
+            status: status
+            provider: provider
+            model: model
+            requestId: requestId
+          drop_malformed: false
+      - labels:
+          level:
+          route:
+          method:
+          status:
+          provider:
+          model:
+      - labeldrop:
+          - filename

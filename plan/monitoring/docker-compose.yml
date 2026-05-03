@@ -1,0 +1,125 @@
+services:
+  grafana:
+    image: grafana/grafana:12.0.0
+    container_name: omnirouter-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: omnirouter-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts:/etc/prometheus/alerts:ro
+    depends_on:
+      - omnirouter-exporter
+      - node-exporter
+      - blackbox-exporter
+    networks:
+      - monitoring
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: omnirouter-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - loki-data:/loki
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+    networks:
+      - monitoring
+
+  promtail:
+    image: grafana/promtail:3.5.0
+    container_name: omnirouter-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - promtail-positions:/tmp
+      - ${OMNIROUTE_LOGS_PATH:-/var/lib/omniroute/logs}:/var/log/omniroute:ro
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: omnirouter-node-exporter
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - monitoring
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.26.0
+    container_name: omnirouter-blackbox-exporter
+    restart: unless-stopped
+    command: --config.file=/etc/blackbox_exporter/config.yml
+    ports:
+      - "${BLACKBOX_PORT:-9115}:9115"
+    volumes:
+      - ./blackbox/config.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - monitoring
+
+  omnirouter-exporter:
+    build:
+      context: ./omnirouter-exporter
+    container_name: omnirouter-exporter
+    restart: unless-stopped
+    environment:
+      OMNIROUTE_BASE_URL: ${OMNIROUTE_BASE_URL:-https://platform.hitechcloud.one}
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-}
+      OMNIROUTE_MANAGEMENT_TOKEN: ${OMNIROUTE_MANAGEMENT_TOKEN:-}
+      OMNIROUTE_INSTANCE: ${OMNIROUTE_INSTANCE:-HiTechAI}
+      OMNIROUTE_ENV: ${OMNIROUTE_ENV:-production}
+      EXPORTER_PORT: 9208
+      SCRAPE_TIMEOUT_MS: 12000
+      NODE_ENV: production
+    ports:
+      - "${OMNIROUTER_EXPORTER_PORT:-9208}:9208"
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  grafana-data:
+  prometheus-data:
+  loki-data:
+  promtail-positions:
