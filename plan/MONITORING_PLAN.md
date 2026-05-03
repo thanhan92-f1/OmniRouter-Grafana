@@ -43,6 +43,14 @@ OmniRouter có các endpoint hữu ích:
 
 Chưa thấy endpoint `/metrics` Prometheus chuẩn, nên cần `omnirouter-exporter`.
 
+Auth management đúng:
+
+- Dashboard/management endpoints dùng cookie session tên `auth_token`.
+- Cookie `auth_token` được tạo qua `POST /api/auth/login` với password quản trị.
+- Bearer token không được chấp nhận cho management routes.
+- `OMNIROUTE_API_KEY` chỉ dùng cho `/api/v1/*` hoặc `/v1/*` proxy endpoints, không phải management token.
+- Không dùng và không tạo biến `OMNIROUTE_MANAGEMENT_TOKEN`.
+
 ## Phase 1 — Logging
 
 - Bật file log OmniRouter.
@@ -81,6 +89,13 @@ Lưu ý: nếu endpoint yêu cầu auth, dùng custom exporter thay vì Blackbox
 ## Phase 4 — Custom OmniRouter Exporter
 
 Exporter gọi API OmniRouter và expose `/metrics` tại port `9208`.
+
+Exporter auth flow:
+
+1. Đọc `OMNIROUTE_ADMIN_PASSWORD`.
+1. Gọi `POST /api/auth/login`.
+1. Lấy cookie `auth_token` từ `Set-Cookie`.
+1. Gọi các endpoint management/usage/health bằng header `Cookie: auth_token=...`.
 
 Metrics mục tiêu:
 
@@ -128,15 +143,16 @@ Bước sau nên thêm Alertmanager để gửi Telegram/Email/Slack.
 ## Thứ tự triển khai thực tế
 
 1. Copy `plan/monitoring/.env.example` thành `plan/monitoring/.env`.
-2. Điền `OMNIROUTE_API_KEY` riêng cho exporter.
-3. Xác nhận `OMNIROUTE_LOGS_PATH` đúng path log thật.
-4. Chạy stack bằng Docker Compose.
-5. Mở Grafana và kiểm tra datasource.
-6. Kiểm tra Prometheus target `omnirouter-exporter`, `node-exporter`, `blackbox-omnirouter`.
-7. Kiểm tra Loki có log OmniRouter.
-8. Tinh chỉnh exporter sau khi xem JSON response thực tế của các endpoint.
-9. Thêm dashboard chi tiết theo provider/model/API key.
-10. Thêm Alertmanager.
+1. Điền `OMNIROUTE_ADMIN_PASSWORD` bằng password dashboard admin hiện tại.
+1. Điền `OMNIROUTE_API_KEY` riêng nếu sau này cần scrape proxy endpoints `/api/v1/*` hoặc `/v1/*`.
+1. Xác nhận `OMNIROUTE_LOGS_PATH` đúng path log thật.
+1. Chạy stack bằng Docker Compose.
+1. Mở Grafana và kiểm tra datasource.
+1. Kiểm tra Prometheus target `omnirouter-exporter`, `node-exporter`, `blackbox-omnirouter`.
+1. Kiểm tra Loki có log OmniRouter.
+1. Tinh chỉnh exporter sau khi xem JSON response thực tế của các endpoint.
+1. Thêm dashboard chi tiết theo provider/model/API key.
+1. Thêm Alertmanager.
 
 ## File triển khai
 

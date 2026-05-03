@@ -5,10 +5,15 @@ const config = {
   port: Number(process.env.EXPORTER_PORT || 9208),
   baseUrl: normalizeBaseUrl(process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128'),
   apiKey: process.env.OMNIROUTE_API_KEY || '',
-  managementToken: process.env.OMNIROUTE_MANAGEMENT_TOKEN || '',
+  adminPassword: process.env.OMNIROUTE_ADMIN_PASSWORD || '',
   instance: process.env.OMNIROUTE_INSTANCE || 'omnirouter',
   env: process.env.OMNIROUTE_ENV || 'production',
   scrapeTimeoutMs: Number(process.env.SCRAPE_TIMEOUT_MS || 12000),
+};
+
+const authState = {
+  cookie: '',
+  expiresAt: 0,
 };
 
 const app = express();
@@ -121,14 +126,15 @@ app.listen(config.port, () => {
 });
 
 async function scrapeOmniRouter() {
+  const managementCookie = await getManagementCookie();
   const [health, storage, analytics, budget, resilience, rateLimits, combos] = await Promise.all([
-    fetchEndpoint('/api/monitoring/health'),
-    fetchEndpoint('/api/storage/health'),
-    fetchEndpoint('/api/usage/analytics?period=day'),
-    fetchEndpoint('/api/usage/budget'),
-    fetchEndpoint('/api/resilience'),
-    fetchEndpoint('/api/rate-limits'),
-    fetchEndpoint('/api/combos/metrics'),
+    fetchEndpoint('/api/monitoring/health', { managementCookie }),
+    fetchEndpoint('/api/storage/health', { managementCookie }),
+    fetchEndpoint('/api/usage/analytics?period=day', { managementCookie }),
+    fetchEndpoint('/api/usage/budget', { managementCookie }),
+    fetchEndpoint('/api/resilience', { managementCookie }),
+    fetchEndpoint('/api/rate-limits', { managementCookie }),
+    fetchEndpoint('/api/combos/metrics', { managementCookie }),
   ]);
 
   applyHealth(health);
@@ -140,7 +146,37 @@ async function scrapeOmniRouter() {
   applyCombos(combos);
 }
 
-async function fetchEndpoint(path) {
+async function getManagementCookie() {
+  if (!config.adminPassword) return '';
+  if (authState.cookie && Date.now() < authState.expiresAt) return authState.cookie;
+
+  const response = await fetch(`${config.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password: config.adminPassword }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Management login failed with HTTP ${response.status}`);
+  }
+
+  const setCookie = response.headers.get('set-cookie') || '';
+  const authTokenCookie = extractCookie(setCookie, 'auth_token');
+
+  if (!authTokenCookie) {
+    throw new Error('Management login succeeded but no auth_token cookie was returned');
+  }
+
+  authState.cookie = authTokenCookie;
+  authState.expiresAt = Date.now() + 50 * 60 * 1000;
+
+  return authState.cookie;
+}
+
+async function fetchEndpoint(path, options = {}) {
   const url = `${config.baseUrl}${path}`;
   const started = process.hrtime.bigint();
   const controller = new AbortController();
@@ -151,13 +187,12 @@ async function fetchEndpoint(path) {
       Accept: 'application/json',
     };
 
-    if (config.apiKey) {
+    if (options.useBearer && config.apiKey) {
       headers.Authorization = `Bearer ${config.apiKey}`;
     }
 
-    if (config.managementToken) {
-      headers.Cookie = `token=${config.managementToken}`;
-      headers['X-OmniRoute-Management-Token'] = config.managementToken;
+    if (options.managementCookie) {
+      headers.Cookie = options.managementCookie;
     }
 
     const response = await fetch(url, {
@@ -204,12 +239,24 @@ async function fetchEndpoint(path) {
   }
 }
 
+function extractCookie(setCookieHeader, cookieName) {
+  const cookies = splitSetCookie(setCookieHeader);
+  const prefix = `${cookieName}=`;
+  const cookie = cookies.find((entry) => entry.trim().startsWith(prefix));
+  return cookie ? cookie.split(';')[0].trim() : '';
+}
+
+function splitSetCookie(header) {
+  if (!header) return [];
+  return header.split(/,(?=\s*[^;,\s]+=)/g);
+}
+
 function applyHealth(result) {
   const data = result.data || {};
   const healthy = result.ok && pickBoolean(data, ['healthy', 'ok', 'success', 'status'], ['healthy', 'ok', 'up', 'ready']);
   omniUp.set(healthy ? 1 : 0);
 
-  const uptime = pickNumber(data, ['uptime', 'uptimeSeconds', 'uptime_seconds', 'process.uptime']);
+  const uptime = firstNumber(data, ['uptime', 'uptimeSeconds', 'uptime_seconds', 'process.uptime']);
   if (uptime !== null) uptimeSeconds.set(uptime);
 
   const memory = data.memory || data.mem || data.process?.memory || data.system?.memory;
